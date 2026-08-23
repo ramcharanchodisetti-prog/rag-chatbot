@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Document Search — RAG Chat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#10142A;
+    --panel:#181D3B;
+    --panel-2:#1F2547;
+    --border:#2C3260;
+    --text:#EDEFF7;
+    --muted:#8891B0;
+    --beacon:#E8A33D;
+    --beacon-dim:#8A6428;
+    --signal:#34C7A6;
+    --danger:#E4657A;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--ink);
+    color:var(--text);
+    font-family:'Inter',sans-serif;
+    display:flex;
+    flex-direction:column;
+  }
+  header{
+    padding:18px 28px;
+    border-bottom:1px solid var(--border);
+    display:flex;
+    align-items:center;
+    gap:14px;
+  }
+  .mark{
+    width:30px;height:30px;border-radius:7px;
+    background:linear-gradient(135deg,var(--beacon),var(--signal));
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Space Grotesk',sans-serif;font-weight:700;color:#10142A;font-size:15px;
+    flex-shrink:0;
+  }
+  header h1{
+    font-family:'Space Grotesk',sans-serif;
+    font-size:17px;
+    font-weight:600;
+    margin:0;
+    letter-spacing:0.2px;
+  }
+  header p{margin:0;color:var(--muted);font-size:12.5px;}
+  .layout{
+    flex:1;
+    display:grid;
+    grid-template-columns:300px 1fr;
+    min-height:0;
+  }
+  @media (max-width:760px){
+    .layout{grid-template-columns:1fr;}
+    .sidebar{display:none;}
+    .sidebar.open{display:flex;}
+  }
+  .sidebar{
+    border-right:1px solid var(--border);
+    padding:20px;
+    display:flex;
+    flex-direction:column;
+    gap:16px;
+    overflow-y:auto;
+  }
+  .eyebrow{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10.5px;
+    letter-spacing:1.5px;
+    text-transform:uppercase;
+    color:var(--muted);
+  }
+  .dropzone{
+    border:1.5px dashed var(--border);
+    border-radius:var(--radius);
+    padding:22px 14px;
+    text-align:center;
+    cursor:pointer;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .dropzone:hover, .dropzone.drag{
+    border-color:var(--beacon);
+    background:rgba(232,163,61,0.06);
+  }
+  .dropzone svg{opacity:0.6;margin-bottom:8px;}
+  .dropzone .label{font-size:13px;color:var(--text);}
+  .dropzone .hint{font-size:11.5px;color:var(--muted);margin-top:4px;}
+  #fileInput{display:none;}
+  .doc-list{display:flex;flex-direction:column;gap:8px;}
+  .doc-card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:11px 12px;
+    position:relative;
+    overflow:hidden;
+  }
+  .doc-card .name{
+    font-size:13px;font-weight:500;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .doc-card .meta{
+    font-family:'JetBrains Mono',monospace;
+    font-size:10.5px;color:var(--muted);margin-top:4px;
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .status-dot{width:6px;height:6px;border-radius:50%;display:inline-block;margin-right:5px;}
+  .status-processing .status-dot{background:var(--beacon);animation:pulse 1.4s infinite;}
+  .status-ready .status-dot{background:var(--signal);}
+  .status-failed .status-dot{background:var(--danger);}
+  @keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+  .doc-card.status-processing::after{
+    content:'';position:absolute;top:0;left:-40%;width:40%;height:100%;
+    background:linear-gradient(90deg,transparent,rgba(232,163,61,0.12),transparent);
+    animation:scan 1.6s linear infinite;
+  }
+  @keyframes scan{from{left:-40%;}to{left:100%;}}
+  .empty-hint{color:var(--muted);font-size:12.5px;line-height:1.5;}
+
+  .chat-col{display:flex;flex-direction:column;min-height:0;}
+  .messages{
+    flex:1;overflow-y:auto;padding:24px 28px;
+    display:flex;flex-direction:column;gap:18px;
+  }
+  .msg{max-width:640px;display:flex;flex-direction:column;gap:6px;}
+  .msg.user{align-self:flex-end;align-items:flex-end;}
+  .msg.assistant{align-self:flex-start;}
+  .bubble{
+    padding:12px 15px;border-radius:12px;font-size:14.5px;line-height:1.55;
+    white-space:pre-wrap;
+  }
+  .msg.user .bubble{background:var(--beacon);color:#1B1204;border-bottom-right-radius:3px;}
+  .msg.assistant .bubble{background:var(--panel);border:1px solid var(--border);border-bottom-left-radius:3px;}
+  .sources{display:flex;flex-wrap:wrap;gap:6px;}
+  .source-chip{
+    font-family:'JetBrains Mono',monospace;font-size:10.5px;
+    background:var(--panel-2);border:1px solid var(--border);color:var(--signal);
+    padding:3px 8px;border-radius:5px;cursor:default;
+  }
+  .welcome{
+    margin:auto;text-align:center;color:var(--muted);max-width:420px;
+  }
+  .welcome h2{font-family:'Space Grotesk',sans-serif;color:var(--text);font-size:19px;margin-bottom:6px;}
+  .welcome p{font-size:13.5px;line-height:1.6;}
+  .composer{
+    border-top:1px solid var(--border);
+    padding:16px 28px 22px;
+    display:flex;gap:10px;
+  }
+  #messageInput{
+    flex:1;background:var(--panel);border:1px solid var(--border);
+    border-radius:var(--radius);color:var(--text);padding:12px 14px;
+    font-family:'Inter',sans-serif;font-size:14px;resize:none;
+  }
+  #messageInput:focus{outline:none;border-color:var(--beacon);}
+  #sendBtn{
+    background:var(--beacon);color:#1B1204;border:none;border-radius:var(--radius);
+    padding:0 20px;font-weight:600;font-size:13.5px;cursor:pointer;
+    font-family:'Space Grotesk',sans-serif;
+  }
+  #sendBtn:disabled{opacity:0.5;cursor:not-allowed;}
+  .typing{display:flex;gap:4px;padding:4px 0;}
+  .typing span{width:5px;height:5px;background:var(--muted);border-radius:50%;animation:bounce 1.2s infinite;}
+  .typing span:nth-child(2){animation-delay:.15s;}
+  .typing span:nth-child(3){animation-delay:.3s;}
+  @keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.5;}30%{transform:translateY(-4px);opacity:1;}}
+  ::-webkit-scrollbar{width:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--panel-2);border-radius:4px;}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="mark">AI</div>
+  <div>
+    <h1>Document Search</h1>
+    <p>Retrieval-augmented chat over your uploaded files</p>
+  </div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div>
+      <div class="eyebrow" style="margin-bottom:10px;">Upload</div>
+      <div class="dropzone" id="dropzone">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8891B0" stroke-width="1.6"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>
+        <div class="label">Drop a file or click to browse</div>
+        <div class="hint">PDF, TXT, or MD · up to 20MB</div>
+      </div>
+      <input type="file" id="fileInput" accept=".pdf,.txt,.md">
+    </div>
+    <div>
+      <div class="eyebrow" style="margin-bottom:10px;">Library</div>
+      <div class="doc-list" id="docList">
+        <div class="empty-hint" id="emptyHint">No documents yet. Upload one to start asking questions grounded in its contents.</div>
+      </div>
+    </div>
+  </aside>
+
+  <div class="chat-col">
+    <div class="messages" id="messages">
+      <div class="welcome" id="welcome">
+        <h2>Ask your documents anything</h2>
+        <p>Upload a file on the left, wait for it to finish processing, then ask a question. Answers are generated only from what's in your files — with sources cited.</p>
+      </div>
+    </div>
+    <div class="composer">
+      <textarea id="messageInput" rows="1" placeholder="Ask a question about your documents…"></textarea>
+      <button id="sendBtn">Send</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:8000/api'
+  : '/api'; // same-origin in production behind a reverse proxy
+
+let sessionId = null;
+let documents = [];
+let pollTimer = null;
+
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('fileInput');
+const docList = document.getElementById('docList');
+const emptyHint = document.getElementById('emptyHint');
+const messagesEl = document.getElementById('messages');
+const welcomeEl = document.getElementById('welcome');
+const input = document.getElementById('messageInput');
+const sendBtn = document.getElementById('sendBtn');
+
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag');
+  if (e.dataTransfer.files.length) uploadFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length) uploadFile(fileInput.files[0]);
+  fileInput.value = '';
+});
+
+async function uploadFile(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const res = await fetch(`${API_BASE}/documents`, { method: 'POST', body: formData });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Upload failed' }));
+      alert(err.detail || 'Upload failed');
+      return;
+    }
+    await refreshDocuments();
+    startPolling();
+  } catch (e) {
+    alert('Could not reach the backend. Is it running on port 8000?');
+  }
+}
+
+async function refreshDocuments() {
+  try {
+    const res = await fetch(`${API_BASE}/documents`);
+    documents = await res.json();
+    renderDocuments();
+  } catch (e) { /* backend not up yet — ignore */ }
+}
+
+function renderDocuments() {
+  docList.innerHTML = '';
+  if (documents.length === 0) {
+    docList.appendChild(emptyHint);
+    return;
+  }
+  documents.forEach(doc => {
+    const card = document.createElement('div');
+    card.className = `doc-card status-${doc.status}`;
+    const statusLabel = { processing: 'Processing…', ready: `Ready · ${doc.chunk_count} chunks`, failed: 'Failed' }[doc.status];
+    card.innerHTML = `
+      <div class="name">${escapeHtml(doc.filename)}</div>
+      <div class="meta"><span><span class="status-dot"></span>${statusLabel}</span></div>
+    `;
+    docList.appendChild(card);
+  });
+}
+
+function startPolling() {
+  if (pollTimer) return;
+  pollTimer = setInterval(async () => {
+    await refreshDocuments();
+    const stillProcessing = documents.some(d => d.status === 'processing');
+    if (!stillProcessing) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+  }, 1500);
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function autoResize() {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 140) + 'px';
+}
+input.addEventListener('input', autoResize);
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendMessage();
+  }
+});
+sendBtn.addEventListener('click', sendMessage);
+
+function addMessage(role, text, sources) {
+  if (welcomeEl) welcomeEl.remove();
+  const msg = document.createElement('div');
+  msg.className = `msg ${role}`;
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  msg.appendChild(bubble);
+  if (sources && sources.length) {
+    const row = document.createElement('div');
+    row.className = 'sources';
+    sources.forEach((s, i) => {
+      const chip = document.createElement('span');
+      chip.className = 'source-chip';
+      chip.title = s.excerpt;
+      chip.textContent = `[${i + 1}] ${s.filename}`;
+      row.appendChild(chip);
+    });
+    msg.appendChild(row);
+  }
+  messagesEl.appendChild(msg);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return msg;
+}
+
+function addTypingIndicator() {
+  const msg = document.createElement('div');
+  msg.className = 'msg assistant';
+  msg.id = 'typing-indicator';
+  msg.innerHTML = `<div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  messagesEl.appendChild(msg);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function removeTypingIndicator() {
+  const el = document.getElementById('typing-indicator');
+  if (el) el.remove();
+}
+
+async function sendMessage() {
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  autoResize();
+  addMessage('user', text);
+  addTypingIndicator();
+  sendBtn.disabled = true;
+
+  try {
+    const res = await fetch(`${API_BASE}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, message: text }),
+    });
+    const data = await res.json();
+    removeTypingIndicator();
+    if (!res.ok) {
+      addMessage('assistant', data.detail || 'Something went wrong.');
+      return;
+    }
+    sessionId = data.session_id;
+    addMessage('assistant', data.answer, data.sources);
+  } catch (e) {
+    removeTypingIndicator();
+    addMessage('assistant', 'Could not reach the backend. Is it running on port 8000?');
+  } finally {
+    sendBtn.disabled = false;
+  }
+}
+
+refreshDocuments();
+</script>
+</body>
+</html>
