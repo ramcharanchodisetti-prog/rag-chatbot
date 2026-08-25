@@ -6,6 +6,18 @@ To swap in Pinecone or Weaviate for a larger-scale deployment, reimplement
 these three functions against that SDK and nothing else in the codebase
 needs to change.
 """
+try:
+    # GitHub Actions' default Python build ships an older SQLite than
+    # chromadb requires (>=3.35.0). pysqlite3-binary bundles a modern
+    # SQLite and this swap makes chromadb use it transparently, without
+    # needing to touch the system package. No-op on systems where the
+    # system SQLite is already new enough (e.g. most local dev machines).
+    __import__("pysqlite3")
+    import sys
+    sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
+except ImportError:
+    pass
+
 import chromadb
 
 from app.config import get_settings
