@@ -34,20 +34,21 @@ def ingest_document(db: Session, document_id: str, file_path: str):
         embeddings = embed_texts(chunks)
 
         chunk_rows = []
-        chunk_ids = []
         metadatas = []
         for i, content in enumerate(chunks):
             row = DocumentChunk(document_id=document.id, chunk_index=i, content=content)
             db.add(row)
             chunk_rows.append(row)
-            chunk_ids.append(row.id)
+
+        db.flush()  # assign IDs before reading row.id below
+
+        chunk_ids = [row.id for row in chunk_rows]
+        for i in range(len(chunks)):
             metadatas.append({
                 "document_id": document.id,
                 "filename": document.filename,
                 "chunk_index": i,
             })
-
-        db.flush()  # assign IDs before writing to the vector store
 
         upsert_chunks(chunk_ids, embeddings, chunks, metadatas)
 
