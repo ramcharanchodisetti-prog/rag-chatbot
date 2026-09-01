@@ -20,8 +20,8 @@ class Settings(BaseSettings):
 
     # --- Gemini (Google AI Studio, free tier) ---
     GEMINI_API_KEY: str = ""
-    GEMINI_CHAT_MODEL: str = "gemini-2.0-flash"
-    GEMINI_EMBEDDING_MODEL: str = "text-embedding-004"
+    GEMINI_CHAT_MODEL: str = "gemini-flash-latest"
+    GEMINI_EMBEDDING_MODEL: str = "gemini-embedding-001"
 
     # --- Database ---
     # SQLite by default so the project runs with zero external services.

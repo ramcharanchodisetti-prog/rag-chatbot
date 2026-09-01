@@ -10,9 +10,9 @@ services:
       - key: GEMINI_API_KEY
         sync: false
       - key: GEMINI_CHAT_MODEL
-        value: gemini-2.0-flash
+        value: gemini-flash-latest
       - key: GEMINI_EMBEDDING_MODEL
-        value: text-embedding-004
+        value: gemini-embedding-001
       - key: DATABASE_URL
         value: sqlite:///./rag_chatbot.db
       - key: CHROMA_PERSIST_DIR
