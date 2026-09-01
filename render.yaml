@@ -1,0 +1,37 @@
+services:
+  - type: web
+    name: rag-chatbot
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_CHAT_MODEL
+        value: gemini-2.0-flash
+      - key: GEMINI_EMBEDDING_MODEL
+        value: text-embedding-004
+      - key: DATABASE_URL
+        value: sqlite:///./rag_chatbot.db
+      - key: CHROMA_PERSIST_DIR
+        value: ./chroma_data
+      - key: CHROMA_COLLECTION
+        value: documents
+      - key: CHUNK_SIZE
+        value: "800"
+      - key: CHUNK_OVERLAP
+        value: "150"
+      - key: TOP_K
+        value: "5"
+      - key: MAX_UPLOAD_MB
+        value: "20"
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: CORS_ORIGINS
+        value: ""
