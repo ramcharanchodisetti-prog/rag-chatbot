@@ -1,7 +1,9 @@
 """
-Thin wrapper around the OpenAI chat completions endpoint, with the RAG
-system prompt centralized here so it's easy to tune in one place.
+Thin wrapper around the Gemini chat endpoint, with the RAG system prompt
+centralized here so it's easy to tune in one place.
 """
+from google.genai import types
+
 from app.config import get_settings
 from app.services.embeddings import get_client
 
@@ -25,18 +27,25 @@ def build_context(chunks: list[dict]) -> str:
 
 def generate_answer(question: str, chunks: list[dict], history: list[dict] | None = None) -> str:
     context = build_context(chunks)
-    messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
+    # Gemini's history format uses "user"/"model" roles and a "parts" list,
+    # so recent OpenAI-style {"role", "content"} turns are translated here.
+    contents = []
     if history:
-        messages.extend(history[-10:])  # keep recent turns only
+        for turn in history[-10:]:
+            role = "model" if turn["role"] == "assistant" else "user"
+            contents.append(types.Content(role=role, parts=[types.Part(text=turn["content"])]))
 
     user_content = f"Context:\n{context}\n\nQuestion: {question}"
-    messages.append({"role": "user", "content": user_content})
+    contents.append(types.Content(role="user", parts=[types.Part(text=user_content)]))
 
     client = get_client()
-    response = client.chat.completions.create(
-        model=settings.OPENAI_CHAT_MODEL,
-        messages=messages,
-        temperature=0.2,
+    response = client.models.generate_content(
+        model=settings.GEMINI_CHAT_MODEL,
+        contents=contents,
+        config=types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            temperature=0.2,
+        ),
     )
-    return response.choices[0].message.content
+    return response.text

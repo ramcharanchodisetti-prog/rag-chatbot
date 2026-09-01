@@ -18,10 +18,10 @@ class Settings(BaseSettings):
     DEBUG: bool = True
     CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5500,http://127.0.0.1:5500"
 
-    # --- OpenAI ---
-    OPENAI_API_KEY: str = ""
-    OPENAI_CHAT_MODEL: str = "gpt-4o-mini"
-    OPENAI_EMBEDDING_MODEL: str = "text-embedding-3-small"
+    # --- Gemini (Google AI Studio, free tier) ---
+    GEMINI_API_KEY: str = ""
+    GEMINI_CHAT_MODEL: str = "gemini-2.0-flash"
+    GEMINI_EMBEDDING_MODEL: str = "text-embedding-004"
 
     # --- Database ---
     # SQLite by default so the project runs with zero external services.
