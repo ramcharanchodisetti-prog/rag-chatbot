@@ -20,17 +20,24 @@ def get_client() -> genai.Client:
     return _client
 
 
+GEMINI_EMBED_BATCH_LIMIT = 100  # Gemini's batch embedding API caps requests at 100 per call
+
+
 def embed_texts(texts: list[str]) -> list[list[float]]:
     if not texts:
         return []
     client = get_client()
-    response = client.models.embed_content(
-        model=settings.GEMINI_EMBEDDING_MODEL,
-        contents=texts,
-        config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT"),
-    )
-    # response.embeddings is returned in the same order as the input list.
-    return [e.values for e in response.embeddings]
+    embeddings: list[list[float]] = []
+    for i in range(0, len(texts), GEMINI_EMBED_BATCH_LIMIT):
+        batch = texts[i : i + GEMINI_EMBED_BATCH_LIMIT]
+        response = client.models.embed_content(
+            model=settings.GEMINI_EMBEDDING_MODEL,
+            contents=batch,
+            config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT"),
+        )
+        # response.embeddings is returned in the same order as the input batch.
+        embeddings.extend(e.values for e in response.embeddings)
+    return embeddings
 
 
 def embed_query(text: str) -> list[float]:
